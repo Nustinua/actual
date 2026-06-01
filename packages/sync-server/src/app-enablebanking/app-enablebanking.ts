@@ -498,12 +498,18 @@ app.post(
           ? startDate
           : new Date(startDate).toISOString().split('T')[0];
 
-      // Fetch balances
-      const balanceResult = await enableBankingService.getBalances(
-        accountId,
-        psuHeaders,
-      );
-      const balances = balanceResult.balances.map(normalizeBalance);
+      // Fetch balances. Some ASPSPs may fail balance requests even when
+      // transactions are still available, so do not fail the whole sync.
+      let balances: ReturnType<typeof normalizeBalance>[] = [];
+      try {
+        const balanceResult = await enableBankingService.getBalances(
+          accountId,
+          psuHeaders,
+        );
+        balances = balanceResult.balances.map(normalizeBalance);
+      } catch (err) {
+        debug('Failed to fetch balances for account %s: %s', accountId, err);
+      }
 
       // Determine starting balance, preferring CLAV balance type
       let startingBalance = 0;
